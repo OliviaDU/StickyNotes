@@ -23,6 +23,7 @@ app.util = {
 		let year = d.getFullYear(),
 			month = d.getMonth() + 1,
 			date = d.getDate(),
+
 			hour = d.getHours(),
 			minute = d.getMinutes(),
 			second = d.getSeconds();
@@ -38,17 +39,23 @@ app.store = {
 		let notes = this.getNotes();
 		return notes[id] || {};
 	},
-	set: function(id, value) {
+	set: function(id, note) {
 		let notes = this.getNotes();
 		if (notes[id]) {
-			Obeject.assign(notes[id], value);
+			Object.assign(notes[id], note);
 		} else {
-			notes[id] = value;
+			notes[id] = note;
 		}
 		localStorage[this._store_key] = JSON.stringify(notes); //存储的时候要转换为字符串
+		console.log(`saved note id:${id},note:${JSON.stringify(notes[id])}`);
+	},
+	remove: function(id) {
+		let notes = this.getNotes();
+		delete notes[id];
+		localStorage[this._store_key] = JSON.stringify(notes);
 	},
 	getNotes: function() {
-		return localStorage[this._store_key] || {};
+		return JSON.parse(localStorage[this._store_key] || '{}'); //获取的是字符串，需要解析为对象
 	}
 };
 
@@ -58,7 +65,7 @@ app.store = {
 		movedNote = null,
 		startX,
 		startY,
-		MaxzIndex = 0;
+		maxzIndex = 0;
 
 	let noteTpl = `
     	<i class="u-close"></i>
@@ -71,16 +78,18 @@ app.store = {
 
 	function Note(options) {
 		let note = document.createElement('div');
+		note.id = options.id || `m-note-${Date.now()}`; //数值id取不到，要转换为字符串
 		note.className = 'm-note';
 		note.innerHTML = noteTpl;
+		$('.u-editor', note).innerHTML = options.content || '';
 		note.style.left = options.left + 'px';
 		note.style.top = options.top + 'px';
 		note.style.zIndex = options.zIndex;
 
 		document.body.appendChild(note);
-		this.note = note;
-		this.updateTime();
-		this.addEvent();
+		this.note = note; //将DOM节点赋给note属性
+		this.updateTime(options.updateTime); //更新时间
+		this.addEvent(); //绑定事件
 	}
 
 	//更新时间方法
@@ -88,6 +97,18 @@ app.store = {
 		ms = ms || Date.now();
 		let ts = $('.time', this.note);
 		ts.innerHTML = util.formatTime(ms);
+		this.updateTimeInMS = ms;
+	};
+
+	//保存便签
+	Note.prototype.save = function() {
+		store.set(this.note.id, {
+			left: this.note.offsetLeft,
+			top: this.note.offsetTop,
+			zIndex: parseInt(this.note.style.zIndex),
+			content: $('.u-editor', this.note).innerHTML,
+			updateTime: this.updateTimeInMS
+		});
 	};
 
 	//删除便签方法
@@ -103,8 +124,11 @@ app.store = {
 			startX = e.clientX - movedNote.offsetLeft;
 			startY = e.clientY - movedNote.offsetTop;
 			//将当前移动的便签置为顶层
-			if (parseInt(movedNote.style.zIndex, 10) !== MaxzIndex - 1) {
-				movedNote.style.zIndex = MaxzIndex++;
+			if (parseInt(movedNote.style.zIndex, 10) !== maxzIndex - 1) {
+				movedNote.style.zIndex = maxzIndex++;
+				store.set(this.note.id, {
+					zIndex: maxzIndex - 1
+				});
 			}
 		}.bind(this);
 		this.note.addEventListener('mousedown', mousedownHandler);
@@ -112,15 +136,28 @@ app.store = {
 		//便签的输入事件
 		let editor = $('.u-editor', this.note);
 
-		function inputHandler() {
-			let val = editor.innerHTML;
-		}
+		let inputTimer;
+
+		let inputHandler = function() {
+			let content = editor.innerHTML;
+			//延缓函数的执行
+			clearTimeout(inputTimer);
+			inputTimer = setTimeout(function() {
+				let time = Date.now();
+				store.set(this.note.id, {
+					content: content,
+					updateTime: time
+				});
+				this.updateTime(time);
+			}.bind(this), 1000);
+		}.bind(this);
 
 		editor.addEventListener('input', inputHandler);
 
 		//便签close事件
 		let closeBtn = $('.u-close', this.note); //关闭按钮node
 		let closeHandler = function(e) {
+			store.remove(this.note.id);
 			this.close(e); //移除note节点
 			closeBtn.removeEventListener('click', closeHandler); //移除节点的同时移除绑定的事件
 			this.note.removeEventListener('mousedown', mousedownHandler);
@@ -134,11 +171,12 @@ app.store = {
 	document.addEventListener('DOMContentLoaded', (e) => {
 		//创建note事件
 		$('#create').addEventListener('click', (e) => {
-			new Note({
+			let note = new Note({
 				left: Math.floor(Math.random() * (window.innerWidth - 220)), //保证在可视范围内
 				top: Math.floor(Math.random() * (window.innerHeight - 320)),
-				zIndex: MaxzIndex++
+				zIndex: maxzIndex++
 			});
+			note.save();
 		});
 
 		//移动note事件
@@ -150,11 +188,30 @@ app.store = {
 
 		//鼠标放开事件
 		function mouseupHandler() {
+			if (!movedNote) return;
+
+			store.set(movedNote.id, {
+				left: movedNote.offsetLeft,
+				top: movedNote.offsetTop
+			});
+
 			movedNote = null;
 		}
 		document.addEventListener('mousemove', mousemoveHandler);
 		document.addEventListener('mouseup', mouseupHandler);
 
+		//初始化notes
+		let notes = store.getNotes();
+		Object.keys(notes).forEach((id) => {
+			let options = notes[id];
+			if (options.zIndex > maxzIndex) {
+				maxzIndex = options.zIndex;
+			}
+			new Note(Object.assign(options, {
+				id: id
+			}));
+		});
+		++maxzIndex;
 	});
 
 })(app.util, app.store);
