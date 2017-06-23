@@ -11,15 +11,18 @@ let app = {
 
 //工具方法模块
 app.util = {
-	$: (selector, node) => (node || document).querySelector(selector), //通用选择器
+	$: (selector, node = document) => node.querySelector(selector), //通用选择器
 	formatTime: (ms) => {
 		let d = new Date(ms);
+
+		//只有一位数时，前面加一个0
 		let pad = function(s) {
 			if (s.toString().length === 1) {
 				s = '0' + s;
 			}
 			return s;
 		};
+
 		let year = d.getFullYear(),
 			month = d.getMonth() + 1,
 			date = d.getDate(),
@@ -42,7 +45,7 @@ app.store = {
 	set: function(id, note) {
 		let notes = this.getNotes();
 		if (notes[id]) {
-			Object.assign(notes[id], note);
+			Object.assign(notes[id], note); //同名属性后面的会覆盖前面的
 		} else {
 			notes[id] = note;
 		}
@@ -76,25 +79,28 @@ app.store = {
     	</div>
 		`;
 
+	//note构造函数
 	function Note(options) {
 		let note = document.createElement('div');
+
 		note.id = options.id || `m-note-${Date.now()}`; //数值id取不到，要转换为字符串
 		note.className = 'm-note';
 		note.innerHTML = noteTpl;
-		$('.u-editor', note).innerHTML = options.content || '';
-		note.style.left = options.left + 'px';
+		$('.u-editor', note).innerHTML = options.content || ''; //初始化可以编辑区域内容
+
+		note.style.left = options.left + 'px'; //一定要加单位
 		note.style.top = options.top + 'px';
 		note.style.zIndex = options.zIndex;
 
 		document.body.appendChild(note);
+
 		this.note = note; //将DOM节点赋给note属性
 		this.updateTime(options.updateTime); //更新时间
 		this.addEvent(); //绑定事件
 	}
 
 	//更新时间方法
-	Note.prototype.updateTime = function(ms) {
-		ms = ms || Date.now();
+	Note.prototype.updateTime = function(ms = Date.now()) {
 		let ts = $('.time', this.note);
 		ts.innerHTML = util.formatTime(ms);
 		this.updateTimeInMS = ms;
@@ -118,11 +124,12 @@ app.store = {
 
 	//创建Note时添加事件方法
 	Note.prototype.addEvent = function() {
+
 		//便签 mousedown 事件
 		let mousedownHandler = function(e) {
 			movedNote = this.note;
-			startX = e.clientX - movedNote.offsetLeft;
-			startY = e.clientY - movedNote.offsetTop;
+			startX = e.clientX - movedNote.offsetLeft; //鼠标距离note左边的距离
+			startY = e.clientY - movedNote.offsetTop; //鼠标距离note顶边的距离
 			//将当前移动的便签置为顶层
 			if (parseInt(movedNote.style.zIndex, 10) !== maxzIndex - 1) {
 				movedNote.style.zIndex = maxzIndex++;
@@ -134,23 +141,22 @@ app.store = {
 		this.note.addEventListener('mousedown', mousedownHandler);
 
 		//便签的输入事件
-		let editor = $('.u-editor', this.note);
+		let editor = $('.u-editor', this.note),
+			inputTimer;
 
-		let inputTimer;
-
-		let inputHandler = function() {
+		let inputHandler = () => {
 			let content = editor.innerHTML;
 			//延缓函数的执行
-			clearTimeout(inputTimer);
-			inputTimer = setTimeout(function() {
+			clearTimeout(inputTimer); //清除定时器
+			inputTimer = setTimeout(() => {
 				let time = Date.now();
 				store.set(this.note.id, {
 					content: content,
 					updateTime: time
 				});
 				this.updateTime(time);
-			}.bind(this), 1000);
-		}.bind(this);
+			}, 800);
+		};
 
 		editor.addEventListener('input', inputHandler);
 
