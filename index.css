@@ -1,77 +1,64 @@
-body
-{
+body {
     font: 14px/1.3 '微软雅黑';
 }
 
-button
-{
+button {
     cursor: pointer;
+    background: #2196F3;
+    border: none;
+    color: #fff;
+    font-size: 14px;
+    padding: 5px 10px;
+    box-shadow: 1px 1px 3px #828282;
 }
 
-.m-note
-{
-    position: absolute;
+.n-container {}
 
+.m-note {
+    position: absolute;
     width: 200px;
     height: 300px;
     padding: 10px;
-
     cursor: move;
-
-    background: rgb(255, 240, 70);
+    background: #dbeffa;
     box-shadow: 0 5px 10px rgba(0, 0, 0, .5);
 }
 
-.m-note .u-close
-{
+.m-note .u-close {
     position: absolute;
     top: -15px;
     left: -15px;
-
     display: none;
-
     width: 30px;
     height: 30px;
-
     cursor: pointer;
-
     background-image: url(close.png);
 }
 
-.m-note  .u-editor
-{
+.m-note .u-editor {
     position: absolute;
     top: 10px;
     right: 0;
     bottom: 30px;
     left: 0;
-
     overflow: auto;
-
     padding: 10px;
-
     cursor: text;
-
     outline: none;
 }
 
-.m-note:hover .u-close
-{
+.m-note:hover .u-close {
     display: block;
 }
 
-.m-note .u-timestamp
-{
+.m-note .u-timestamp {
     font-size: 12px;
     line-height: 30px;
-
     position: absolute;
     right: 0;
     bottom: 0;
     left: 0;
-
     padding: 0 10px;
-
     color: #fff;
-    background: #db0;
+    background: rgb(81, 156, 216);
 }
